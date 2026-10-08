@@ -44,6 +44,10 @@ from forecasting_tools import (
 dotenv.load_dotenv()
 logger = logging.getLogger(__name__)
 
+# OpenRouter model ids, checked against https://openrouter.ai/api/v1/models on 2026-10-08.
+FORECASTER_MODEL = "openrouter/anthropic/claude-opus-5.5"
+HELPER_MODEL = "openrouter/anthropic/claude-haiku-5.5"
+
 
 class FallTemplateBot2026(ForecastBot):
     """
@@ -715,17 +719,32 @@ if __name__ == "__main__":
         folder_to_save_reports_to=None,
         skip_previously_forecasted_questions=True,
         extra_metadata_in_explanation=True,
-        # llms={
-        #     "default": GeneralLlm(
-        #         model="openrouter/openai/gpt-4o",
-        #         temperature=0.3,
-        #         timeout=40,
-        #         allowed_tries=2,
-        #     ),
-        #     "summarizer": "openai/gpt-4o-mini",
-        #     "researcher": "asknews/news-summaries",
-        #     "parser": "openai/gpt-4o-mini",
-        # },
+        # Models are pinned instead of relying on the forecasting-tools defaults
+        # (gpt-4o as of 0.3.0). All four go through OpenRouter, which is how
+        # the Metaculus-donated credits are delivered (OpenAI/Anthropic/Google only).
+        # temperature=None: the Claude 5.5 models reject sampling parameters.
+        llms={
+            "default": GeneralLlm(
+                model=FORECASTER_MODEL,
+                temperature=None,
+                timeout=300,
+                allowed_tries=2,
+            ),
+            # ":online" turns on the provider's native web search (covered by
+            # the donated credits; a non-native search plugin would not be).
+            "researcher": GeneralLlm(
+                model=f"{FORECASTER_MODEL}:online",
+                temperature=None,
+                timeout=300,
+                allowed_tries=2,
+            ),
+            "summarizer": GeneralLlm(
+                model=HELPER_MODEL, temperature=None, timeout=120, allowed_tries=2
+            ),
+            "parser": GeneralLlm(
+                model=HELPER_MODEL, temperature=None, timeout=120, allowed_tries=2
+            ),
+        },
     )
 
     # Per-mode tournament URL shown in the summary banner footer. These
